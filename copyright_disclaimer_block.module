@@ -1,0 +1,112 @@
+<?php
+
+/**
+ * @file
+ * Creates a dynamic copyright information block.
+ */
+
+/**
+ * Implements hook_block_info().
+ */
+function copyright_disclaimer_block_block_info() {
+  $blocks['copyright_block'] = array(
+    'info' => t('Copyright statement'),
+    'cache' => DRUPAL_CACHE_GLOBAL,
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_configure().
+ */
+function copyright_disclaimer_block_block_configure($delta = '') {
+  $form = array();
+
+  switch ($delta) {
+    case 'copyright_block':
+      $form['text'] = array(
+        '#title' => t('Copyright statement text.'),
+        '#type' => 'textarea',
+        '#default_value' => variable_get('copyright_disclaimer_block_text', ''),
+      );
+
+      $menu_array = menu_get_menus();
+      $menu_array[0] = t('none');
+      $form['selected_menu'] = array(
+        '#type' => 'select',
+        '#title' => 'Menu',
+        '#options' => $menu_array,
+        '#default_value' => variable_get('copyright_disclaimer_block_menu', 0),
+        '#description' => t('What menu to show in the footer after the site name.'),
+      );
+
+      $form['powered_by'] = array(
+        '#type' => 'checkbox',
+        '#title' => t('Show "Drupal website by Cooldrops powered by Dropsolid"'),
+        '#default_value' => variable_get('copyright_disclaimer_block_powered_by', 0),
+      );
+      break;
+  }
+
+  return $form;
+}
+
+/**
+ * Implements hook_block_save().
+ */
+function copyright_disclaimer_block_block_save($delta = '', $edit = array()) {
+  variable_set('copyright_disclaimer_block_text', filter_xss($edit['text']));
+  variable_set('copyright_disclaimer_block_powered_by', $edit['powered_by']);
+  variable_set('copyright_disclaimer_block_menu', $edit['selected_menu']);
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function copyright_disclaimer_block_block_view($delta = '') {
+  $block = array();
+
+  switch ($delta) {
+    case 'copyright_block':
+      $block['subject'] = t('Copyright statement');
+      $block['content'] = copyright_disclaimer_block_block_content();
+      break;
+  }
+
+  return $block;
+}
+
+/**
+ * Display the copyright message.
+ */
+function copyright_disclaimer_block_block_content() {
+  $output = '<div class="copyright">';
+  $output .= date('Y') . ' ';
+  $output .= token_replace(t('Copyright &copy; [site:name]'));
+  $output .= '. ';
+
+  $output .= variable_get('copyright_disclaimer_block_text', '');
+
+  $menu_name = variable_get('copyright_disclaimer_block_menu');
+
+  if($menu_name) {
+    $menu_items = array();
+
+    $menu_tree = menu_navigation_links($menu_name);
+    foreach ($menu_tree as $menu_item) {
+      $menu_items[] = l( $menu_item['title'], $menu_item['href']);
+
+    }
+    $output .= theme('item_list', array('items' => $menu_items,'attributes' => array('class' => array('menu'))));
+  }
+
+  $output .= '</div>';
+
+  $powered_by = variable_get('copyright_disclaimer_block_powered_by', 0);
+  if ($powered_by) {
+    $output .= '<div class="powered-by">Drupal website by ' . l('Cooldrops','https://www.cooldrops.be/') . ' powered by ' . l('Dropsolid', 'https://www.dropsolid.com/') . '.</div>';
+  }
+
+  return $output;
+}
